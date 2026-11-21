@@ -1,14 +1,9 @@
 """
 Museum-Grade Hong Kong Geological Rock Specimens ('rock_samples.glb') for Primary 4 (4EA2):
-1. 'Rock_Granite' (花崗岩 - Igneous): Angular fractured crystalline outcrop with authentic
-   pink potassium feldspar, grey-white quartz & black biotite mica mineral speckles + crystal normal facets!
-2. 'Rock_Sandstone' (砂岩 - Sedimentary): Tabular stepped cliff specimen with authentic
-   Hong Kong Port Island (赤洲) terracotta-red & golden-ochre horizontal bedding strata + sandy grain bump!
-3. 'Rock_Marble' (大理岩 - Metamorphic): Semi-polished sculpted stone with authentic
-   alabaster-white & turbulent grey-gold metamorphic flow veins + glossy polish!
-Each mounted on an obsidian-slate museum display pedestal with a brass trim ring.
+1. 'Rock_Granite' (花崗岩 - Igneous)
+2. 'Rock_Sandstone' (砂岩 - Sedimentary)
+3. 'Rock_Marble' (大理岩 - Metamorphic)
 """
-import math
 import bpy
 import numpy as np
 
@@ -17,12 +12,18 @@ from tex_utils import (
     create_packed_image,
     fbm3d,
     height_to_normal_rgba,
-     noise3d,
+    noise3d,
 )
 
 
 def clear_scene():
     bpy.ops.wm.read_factory_settings(use_empty=True)
+
+
+def parent_keep_world(child, parent):
+    bpy.context.view_layer.update()
+    child.parent = parent
+    child.matrix_parent_inverse = parent.matrix_world.inverted()
 
 
 def make_solid_mat(name, rgba, metallic=0.2, roughness=0.4):
@@ -37,23 +38,20 @@ def make_solid_mat(name, rgba, metallic=0.2, roughness=0.4):
 
 
 def generate_granite_textures(w=512, h=512):
-    """Authentic Hong Kong Pink-Grey Biotite Granite with distinct mineral crystal grains."""
     u = (np.arange(w, dtype=np.float32) + 0.5) / w
     v = (np.arange(h, dtype=np.float32) + 0.5) / h
     uu, vv = np.meshgrid(u, v)
 
-    # High-frequency cellular/crystalline mineral grain noise
     g1 = noise3d(uu * 46.0, vv * 46.0, np.zeros_like(uu) + 1.2, seed=101)
     g2 = noise3d(uu * 92.0 + 4.5, vv * 92.0 - 2.3, np.zeros_like(uu) + 3.7, seed=107)
     macro = fbm3d(uu * 8.0, vv * 8.0, np.zeros_like(uu), octaves=3, seed=113)
 
     grain = g1 * 0.65 + g2 * 0.35
 
-    quartz_rgb = np.array([0.84, 0.85, 0.87], dtype=np.float32)       # Translucent grey-white quartz
-    feldspar_rgb = np.array([0.91, 0.76, 0.72], dtype=np.float32)     # Hong Kong pinkish-cream feldspar
-    biotite_rgb = np.array([0.09, 0.10, 0.12], dtype=np.float32)      # Crisp black biotite mica flakes
+    quartz_rgb = np.array([0.84, 0.85, 0.87], dtype=np.float32)
+    feldspar_rgb = np.array([0.91, 0.76, 0.72], dtype=np.float32)
+    biotite_rgb = np.array([0.09, 0.10, 0.12], dtype=np.float32)
 
-    # Partition grains sharply into biotite (<0.27), feldspar (0.27..0.60), quartz (>0.60)
     rgb = np.where(
         (grain < 0.27)[..., None],
         biotite_rgb,
@@ -72,15 +70,13 @@ def generate_granite_textures(w=512, h=512):
 
 
 def generate_sandstone_textures(w=512, h=512):
-    """Authentic Hong Kong Port Island (赤洲) Reddish-Ochre Layered Sedimentary Sandstone."""
     u = (np.arange(w, dtype=np.float32) + 0.5) / w
     v = (np.arange(h, dtype=np.float32) + 0.5) / h
     uu, vv = np.meshgrid(u, v)
 
-    # Gently undulating horizontal sedimentary bedding planes along vv
     wave = fbm3d(uu * 4.5, vv * 4.5, np.zeros_like(uu), octaves=3, seed=201) * 0.085
     strata_coord = vv * 14.0 + wave * 10.0
-    strata = np.sin(strata_coord * math.pi * 2.0) * 0.5 + 0.5
+    strata = np.sin(strata_coord * np.pi * 2.0) * 0.5 + 0.5
     fine_beds = fbm3d(uu * 2.0, strata_coord * 3.5, np.zeros_like(uu), octaves=4, seed=211)
     sand_grit = noise3d(uu * 130.0, vv * 130.0, np.zeros_like(uu), seed=223)
 
@@ -104,7 +100,6 @@ def generate_sandstone_textures(w=512, h=512):
 
 
 def generate_marble_textures(w=512, h=512):
-    """Polished Pearl-White Metamorphic Marble with turbulent grey-slate & champagne veins."""
     u = (np.arange(w, dtype=np.float32) + 0.5) / w
     v = (np.arange(h, dtype=np.float32) + 0.5) / h
     uu, vv = np.meshgrid(u, v)
@@ -112,8 +107,8 @@ def generate_marble_textures(w=512, h=512):
     warp1 = fbm3d(uu * 4.2, vv * 4.2, np.zeros_like(uu), octaves=5, seed=301)
     warp2 = fbm3d(uu * 8.5 + warp1 * 2.4, vv * 8.5 - warp1 * 2.1, np.zeros_like(uu), octaves=5, seed=313)
 
-    vein_primary = np.exp(-((np.sin((uu * 3.5 + vv * 2.8 + warp2 * 2.6) * math.pi)) ** 2) / 0.018)
-    vein_gold = np.exp(-((np.sin((uu * 5.2 - vv * 4.1 + warp1 * 3.1) * math.pi)) ** 2) / 0.008)
+    vein_primary = np.exp(-((np.sin((uu * 3.5 + vv * 2.8 + warp2 * 2.6) * np.pi)) ** 2) / 0.018)
+    vein_gold = np.exp(-((np.sin((uu * 5.2 - vv * 4.1 + warp1 * 3.1) * np.pi)) ** 2) / 0.008)
 
     pearl_white = np.array([0.95, 0.96, 0.97], dtype=np.float32)
     slate_vein = np.array([0.34, 0.40, 0.48], dtype=np.float32)
@@ -133,8 +128,8 @@ def generate_marble_textures(w=512, h=512):
     )
 
 
-def add_museum_pedestal(parent_rock, mat_plinth, mat_brass):
-    bpy.ops.mesh.primitive_cylinder_add(vertices=36, radius=0.78, depth=0.16, location=(0.0, 0.0, -0.62))
+def add_museum_pedestal(parent_rock, x_world, mat_plinth, mat_brass):
+    bpy.ops.mesh.primitive_cylinder_add(vertices=36, radius=0.78, depth=0.16, location=(x_world, 0.0, -0.62))
     base = bpy.context.active_object
     bev = base.modifiers.new(name="Bevel", type="BEVEL")
     bev.width = 0.025
@@ -142,29 +137,27 @@ def add_museum_pedestal(parent_rock, mat_plinth, mat_brass):
     base.data.materials.append(mat_plinth)
     for p in base.data.polygons:
         p.use_smooth = True
-    base.parent = parent_rock
+    parent_keep_world(base, parent_rock)
 
-    bpy.ops.mesh.primitive_torus_add(major_radius=0.76, minor_radius=0.018, major_segments=36, minor_segments=10, location=(0.0, 0.0, -0.54))
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.76, minor_radius=0.018, major_segments=36, minor_segments=10, location=(x_world, 0.0, -0.54))
     ring = bpy.context.active_object
     ring.data.materials.append(mat_brass)
     for p in ring.data.polygons:
         p.use_smooth = True
-    ring.parent = parent_rock
+    parent_keep_world(ring, parent_rock)
 
 
 def sculpt_specimen(name, location, mode, mat_rock, mat_plinth, mat_brass):
-    # UV sphere gives clean equirectangular UVs so strata/grain textures wrap seamlessly!
     bpy.ops.mesh.primitive_uv_sphere_add(segments=64, ring_count=48, radius=0.68, location=location)
     obj = bpy.context.active_object
     obj.name = name
 
-    coords = np.array([ [v.co.x, v.co.y, v.co.z] for v in obj.data.vertices ], dtype=np.float32)
+    coords = np.array([[v.co.x, v.co.y, v.co.z] for v in obj.data.vertices], dtype=np.float32)
     nx = coords[:, 0] / 0.68
     ny = coords[:, 1] / 0.68
     nz = coords[:, 2] / 0.68
 
     if mode == "granite":
-        # Angular fractured crystalline granite boulder (planar fracture cuts + coarse ridges)
         planes = [
             (0.75, -0.45, 0.48, 0.52),
             (-0.68, -0.52, 0.51, 0.54),
@@ -182,24 +175,20 @@ def sculpt_specimen(name, location, mode, mat_rock, mat_plinth, mat_brass):
         coords[:, 2] *= 0.86
 
     elif mode == "sandstone":
-        # Tabular stepped sedimentary cliff block with physical horizontal bedding ledges!
         terrace = np.sin(nz * 16.0) * 0.045 + fbm3d(nx * 3.5, ny * 3.5, nz * 6.0, octaves=4, seed=617) * 0.18
         coords[:, 0] *= (1.16 + terrace)
         coords[:, 1] *= (0.96 + terrace)
         coords[:, 2] = np.clip(coords[:, 2] * 0.76, -0.48, 0.48)
 
     elif mode == "marble":
-        # Sculpted metamorphic stone with a sleek polished inspection face on the front (-Y -> +Z in Three.js)
         flow = 0.92 + 0.16 * fbm3d(nx * 2.6, ny * 2.6, nz * 2.6, octaves=3, seed=631)
         coords *= flow[:, None]
-        # Carve a smooth, gleaming diagonal polished face facing the viewer!
         cut_dir = np.array([0.28, -0.82, 0.48], dtype=np.float32)
         cut_dir /= np.linalg.norm(cut_dir)
         dot = coords @ cut_dir
         excess = np.maximum(0.0, dot - 0.38)
         coords -= excess[:, None] * cut_dir[None, :] * 0.94
 
-    # Rest bottom cleanly above pedestal at z = -0.52
     min_z = float(np.min(coords[:, 2]))
     coords[:, 2] += (-0.52 - min_z)
 
@@ -213,7 +202,7 @@ def sculpt_specimen(name, location, mode, mat_rock, mat_plinth, mat_brass):
         p.use_smooth = mode != "granite"
 
     obj.data.materials.append(mat_rock)
-    add_museum_pedestal(obj, mat_plinth, mat_brass)
+    add_museum_pedestal(obj, location[0], mat_plinth, mat_brass)
     return obj
 
 
@@ -261,4 +250,5 @@ def build(filepath):
         filepath=filepath,
         export_format="GLB",
         export_yup=True,
+        export_apply=True,
     )

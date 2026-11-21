@@ -26,6 +26,12 @@ def clear_scene():
     bpy.ops.wm.read_factory_settings(use_empty=True)
 
 
+def parent_keep_world(child, parent):
+    bpy.context.view_layer.update()
+    child.parent = parent
+    child.matrix_parent_inverse = parent.matrix_world.inverted()
+
+
 def make_mat(name, rgba, metallic=0.5, roughness=0.3, emission=None, strength=0.0, alpha=None):
     mat = bpy.data.materials.new(name=name)
     mat.use_nodes = True
@@ -47,7 +53,6 @@ def generate_armor_textures(w=512, h=512):
     v = (np.arange(h, dtype=np.float32) + 0.5) / h
     uu, vv = np.meshgrid(u, v)
 
-    # Panel seams + rivets + industrial hazard chevron band near lower waist
     seam_v = (np.abs(((vv * 6.0) % 1.0) - 0.5) > 0.47).astype(np.float32)
     seam_u = (np.abs(((uu * 8.0) % 1.0) - 0.5) > 0.475).astype(np.float32)
     seams = np.maximum(seam_v, seam_u)
@@ -59,7 +64,6 @@ def generate_armor_textures(w=512, h=512):
     rgb = yellow_armor * (0.90 + 0.14 * wear[..., None])
     rgb = rgb * (1.0 - seams[..., None] * 0.78) + dark_steel * (seams[..., None] * 0.78)
 
-    # Diagonal black/yellow hazard stripe belt around v in [0.16, 0.25]
     in_belt = (vv > 0.16) & (vv < 0.25)
     stripes = (((uu * 24.0 + vv * 18.0) % 1.0) < 0.5).astype(np.float32)
     hazard_rgb = stripes[..., None] * np.array([0.98, 0.78, 0.05], dtype=np.float32) + (1.0 - stripes[..., None]) * np.array([0.08, 0.09, 0.11], dtype=np.float32)
@@ -81,7 +85,6 @@ def generate_hex_shield_texture(w=512, h=256):
     v = (np.arange(h, dtype=np.float32) + 0.5) / h
     uu, vv = np.meshgrid(u, v)
 
-    # Crisp glowing hexagonal energy lattice
     gx = uu * 28.0
     gy = vv * 14.0
     p1 = np.abs((gx % 1.0) - 0.5)
@@ -102,13 +105,11 @@ def generate_hex_shield_texture(w=512, h=256):
 
 
 def create_spiral_drill_head(mat_tungsten, mat_plasma):
-    """
-    Sculpts a true 3-blade helical corkscrew auger cone ('Drill_Head') pointing down -Z in Blender (-Y in Three.js).
-    """
     mesh = bpy.data.meshes.new("Drill_Head_Mesh")
     obj = bpy.data.objects.new("Drill_Head", mesh)
     bpy.context.collection.objects.link(obj)
-    obj.data.materials.extend([mat_tungsten, mat_plasma])
+    obj.data.materials.append(mat_tungsten)
+    obj.data.materials.append(mat_plasma)
 
     bm = bmesh.new()
     rings = 44
@@ -118,16 +119,14 @@ def create_spiral_drill_head(mat_tungsten, mat_plasma):
 
     grid = []
     for ir in range(rings + 1):
-        t = ir / rings  # 0 at wide base, 1 at sharp plasma tip
+        t = ir / rings
         z = z_top + t * (z_tip - z_top)
         base_r = 0.60 * ((1.0 - t) ** 0.82) + 0.015
         row = []
         for iseg in range(segs):
             ang = 2.0 * math.pi * iseg / segs
-            # 3 raised spiral cutting blades twisting 2.5 full revolutions!
             spiral_phase = 3.0 * ang + t * (2.5 * 2.0 * math.pi)
             blade = max(0.0, math.sin(spiral_phase)) ** 1.6
-            # Stepped carbide teeth serrations along the blade crest
             tooth = 0.85 + 0.15 * math.cos(t * 28.0 * math.pi)
             r = base_r + blade * 0.115 * (1.0 - t * 0.78) * tooth
             row.append(bm.verts.new((r * math.cos(ang), r * math.sin(ang), z)))
@@ -141,7 +140,6 @@ def create_spiral_drill_head(mat_tungsten, mat_plasma):
             f.material_index = 1 if is_tip_glow else 0
             f.smooth = True
 
-    # Cap top & bottom
     top_center = bm.verts.new((0.0, 0.0, z_top))
     tip_center = bm.verts.new((0.0, 0.0, z_tip - 0.04))
     for iseg in range(segs):
@@ -159,11 +157,11 @@ def create_spiral_drill_head(mat_tungsten, mat_plasma):
 
 
 def create_crusher_collar(mat_gunmetal, mat_gold):
-    """Counter-rotating 12-tooth rock-crushing gear collar ('Drill_Collar')."""
     mesh = bpy.data.meshes.new("Drill_Collar_Mesh")
     obj = bpy.data.objects.new("Drill_Collar", mesh)
     bpy.context.collection.objects.link(obj)
-    obj.data.materials.extend([mat_gunmetal, mat_gold])
+    obj.data.materials.append(mat_gunmetal)
+    obj.data.materials.append(mat_gold)
 
     bm = bmesh.new()
     segs = 48
@@ -246,7 +244,6 @@ def build(filepath):
         strength=2.8,
     )
 
-    # Root hull container ('Pod_Body')
     bpy.ops.mesh.primitive_uv_sphere_add(segments=36, ring_count=24, radius=0.70, location=(0, 0, 0.36))
     hull = bpy.context.active_object
     hull.name = "Pod_Body"
@@ -256,7 +253,6 @@ def build(filepath):
     for p in hull.data.polygons:
         p.use_smooth = True
 
-    # Structural armored rib rings parented to Pod_Body
     for idx, z_pos in enumerate((0.02, 0.38, 0.74)):
         r_maj = 0.71 if idx == 1 else 0.62
         bpy.ops.mesh.primitive_torus_add(major_radius=r_maj, minor_radius=0.042, major_segments=36, minor_segments=12, location=(0, 0, z_pos))
@@ -265,9 +261,8 @@ def build(filepath):
         rib.data.materials.append(mat_gunmetal)
         for p in rib.data.polygons:
             p.use_smooth = True
-        rib.parent = hull
+        parent_keep_world(rib, hull)
 
-    # 4 Heavy-duty angled stabilizer fins / magnetic skids around the pod
     for i in range(4):
         ang = math.pi * 0.25 + i * (math.pi * 0.5)
         fx = math.cos(ang) * 0.72
@@ -281,21 +276,19 @@ def build(filepath):
         bev.width = 0.022
         bev.segments = 2
         fin.data.materials.append(mat_gunmetal)
-        fin.parent = hull
+        parent_keep_world(fin, hull)
 
-    # Twin top plasma thrusters
     for side in (-1, 1):
         bpy.ops.mesh.primitive_cone_add(vertices=20, radius1=0.20, radius2=0.13, depth=0.28, location=(side * 0.28, 0.0, 1.25))
         nozzle = bpy.context.active_object
         nozzle.data.materials.append(mat_gunmetal)
-        nozzle.parent = hull
+        parent_keep_world(nozzle, hull)
 
         bpy.ops.mesh.primitive_uv_sphere_add(segments=16, ring_count=10, radius=0.12, location=(side * 0.28, 0.0, 1.36))
         flame = bpy.context.active_object
         flame.data.materials.append(mat_thruster_glow)
-        flame.parent = hull
+        parent_keep_world(flame, hull)
 
-    # Twin shoulder LED spotlights facing forward (-Y in Blender -> +Z in Three.js)
     for side in (-1, 1):
         bpy.ops.mesh.primitive_cylinder_add(
             vertices=18,
@@ -306,14 +299,13 @@ def build(filepath):
         )
         pod_light = bpy.context.active_object
         pod_light.data.materials.append(mat_gunmetal)
-        pod_light.parent = hull
+        parent_keep_world(pod_light, hull)
 
         bpy.ops.mesh.primitive_uv_sphere_add(segments=14, ring_count=10, radius=0.088, location=(side * 0.54, -0.48, 0.65))
         lens = bpy.context.active_object
         lens.data.materials.append(mat_headlight)
-        lens.parent = hull
+        parent_keep_world(lens, hull)
 
-    # Cockpit Bezel + Interior Holo-Console + Curved Armored Glass Dome ('Pod_Viewport')
     bpy.ops.mesh.primitive_torus_add(
         major_radius=0.38,
         minor_radius=0.05,
@@ -325,13 +317,13 @@ def build(filepath):
     bezel = bpy.context.active_object
     bezel.name = "Viewport_Bezel"
     bezel.data.materials.append(mat_gunmetal)
-    bezel.parent = hull
+    parent_keep_world(bezel, hull)
 
     bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=2, radius=0.14, location=(0, -0.42, 0.40))
     holo = bpy.context.active_object
     holo.name = "Cockpit_HoloGlobe"
     holo.data.materials.append(mat_thruster_glow)
-    holo.parent = hull
+    parent_keep_world(holo, hull)
 
     bpy.ops.mesh.primitive_uv_sphere_add(segments=26, ring_count=18, radius=0.37, location=(0, -0.52, 0.44))
     glass = bpy.context.active_object
@@ -339,13 +331,11 @@ def build(filepath):
     glass.data.materials.append(mat_glass)
     for p in glass.data.polygons:
         p.use_smooth = True
-    glass.parent = hull
+    parent_keep_world(glass, hull)
 
-    # Spiral Drill Head & Counter-Rotating Crusher Collar
     create_spiral_drill_head(mat_tungsten, mat_plasma)
     create_crusher_collar(mat_gunmetal, mat_armor)
 
-    # Hexagonal Honeycomb Forcefield Shield ('Heat_Shield')
     img_hex = generate_hex_shield_texture(512, 256)
     mat_hex_shield = build_pbr_textured_material(
         "Mat_HexForcefield",
@@ -370,4 +360,5 @@ def build(filepath):
         filepath=filepath,
         export_format="GLB",
         export_yup=True,
+        export_apply=True,
     )

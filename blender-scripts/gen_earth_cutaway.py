@@ -23,8 +23,6 @@ from tex_utils import (
     set_emission,
 )
 
-# Orient globe so Cutaway Window [270°..360°] slices the mid-Pacific facing the camera (+X, +Z in Three.js),
-# while East Asia, China & Hong Kong (22.32°N, 114.17°E -> phi=235°) sit prominently on the sunlit front-left!
 LON_OFFSET_DEG = 120.83
 HK_LAT_DEG = 22.32
 HK_LON_DEG = 114.17
@@ -61,77 +59,63 @@ def latlon_to_unit_xyz(lat_deg, lon_deg):
 
 
 def evaluate_world_elevation(lat_deg, lon_deg):
-    """
-    Vectorized world continent + mountain elevation field in [-1.0 (deep ocean), +1.0 (high peaks)].
-    Carefully sculpted so East Asia, South China (Pearl River Delta / Hong Kong), Taiwan, Hainan,
-    Japan, Indochina, Australia, India, Eurasia, Africa & Americas are crisp and recognizable.
-    """
     nx, ny, nz = latlon_to_unit_xyz(lat_deg, lon_deg)
 
-    # Continental plates: (center_lat, center_lon, sigma_lat, sigma_lon, weight)
     lobes = [
-        # China & East Asia (calibrated around South China / Hong Kong 22.3N, 114.2E)
-        (31.0, 108.0, 11.5, 13.5, 0.88),   # Central & East China
-        (25.2, 113.2, 4.6, 5.8, 0.72),     # Guangdong / South China coast (HK sits right on south coast!)
-        (39.5, 116.5, 7.0, 8.5, 0.70),     # North China / Bohai
-        (46.0, 126.0, 7.5, 9.0, 0.68),     # Manchuria
-        (33.5, 87.0, 7.5, 13.0, 1.18),     # Tibetan Plateau & Himalayas (high snow peaks!)
-        (37.5, 127.5, 3.2, 2.2, 0.52),     # Korean Peninsula
-        (36.2, 138.5, 4.8, 2.6, 0.56),     # Japan Archipelago
-        (23.7, 121.1, 1.7, 1.2, 0.55),     # Taiwan Island
-        (19.1, 109.7, 1.4, 1.5, 0.50),     # Hainan Island
-        (16.5, 102.5, 6.5, 4.8, 0.68),     # Indochina Peninsula
-        (6.0, 101.5, 4.8, 2.0, 0.48),      # Malay Peninsula
-        (0.5, 114.0, 4.2, 4.5, 0.56),      # Borneo
-        (-2.0, 102.0, 4.5, 2.5, 0.48),     # Sumatra
-        (14.5, 121.5, 3.8, 2.0, 0.46),     # Philippines
-        # South Asia, Central Eurasia, Siberia, Middle East & Europe
-        (21.0, 78.5, 8.5, 6.5, 0.78),      # Indian Subcontinent
-        (56.0, 82.0, 13.0, 32.0, 0.82),    # Russia / Siberia
-        (60.0, 132.0, 10.0, 22.0, 0.74),   # East Siberia
-        (24.5, 45.0, 7.5, 9.0, 0.74),      # Arabian Peninsula
-        (36.0, 52.0, 7.5, 12.0, 0.72),     # Iran / Central Asia
-        (50.0, 16.0, 9.5, 15.0, 0.74),     # Europe
-        (62.0, 15.0, 6.5, 7.5, 0.60),      # Scandinavia
-        (54.0, -2.5, 3.2, 2.4, 0.48),      # British Isles
-        # Africa
-        (18.0, 14.0, 13.0, 18.0, 0.88),    # North Africa / Sahara
-        (-4.0, 24.0, 14.0, 11.0, 0.84),    # Central & East Africa
-        (-22.0, 24.0, 9.5, 8.0, 0.74),     # Southern Africa
-        (-19.0, 46.8, 4.5, 2.2, 0.52),     # Madagascar
-        # Australia & New Zealand
-        (-24.5, 134.5, 9.0, 13.5, 0.82),   # Australia
-        (-41.5, 173.0, 3.5, 2.2, 0.48),    # New Zealand
-        # Americas & Antarctica
-        (46.0, -102.0, 14.0, 18.0, 0.86),  # North America
-        (62.0, -112.0, 10.0, 20.0, 0.74),  # Canada / Alaska
-        (21.0, -100.0, 7.0, 5.5, 0.62),    # Mexico / Central America
-        (72.0, -42.0, 8.5, 12.0, 0.76),    # Greenland
-        (-10.0, -60.0, 13.0, 11.0, 0.86),  # South America (Amazon/Brazil)
-        (-34.0, -66.0, 13.0, 5.5, 0.72),   # Patagonia / Andes
-        (-84.0, 0.0, 9.0, 180.0, 0.90),    # Antarctica
+        (31.0, 108.0, 11.5, 13.5, 0.88),
+        (25.2, 113.2, 4.6, 5.8, 0.72),
+        (39.5, 116.5, 7.0, 8.5, 0.70),
+        (46.0, 126.0, 7.5, 9.0, 0.68),
+        (33.5, 87.0, 7.5, 13.0, 1.18),
+        (37.5, 127.5, 3.2, 2.2, 0.52),
+        (36.2, 138.5, 4.8, 2.6, 0.56),
+        (23.7, 121.1, 1.7, 1.2, 0.55),
+        (19.1, 109.7, 1.4, 1.5, 0.50),
+        (16.5, 102.5, 6.5, 4.8, 0.68),
+        (6.0, 101.5, 4.8, 2.0, 0.48),
+        (0.5, 114.0, 4.2, 4.5, 0.56),
+        (-2.0, 102.0, 4.5, 2.5, 0.48),
+        (14.5, 121.5, 3.8, 2.0, 0.46),
+        (21.0, 78.5, 8.5, 6.5, 0.78),
+        (56.0, 82.0, 13.0, 32.0, 0.82),
+        (60.0, 132.0, 10.0, 22.0, 0.74),
+        (24.5, 45.0, 7.5, 9.0, 0.74),
+        (36.0, 52.0, 7.5, 12.0, 0.72),
+        (50.0, 16.0, 9.5, 15.0, 0.74),
+        (62.0, 15.0, 6.5, 7.5, 0.60),
+        (54.0, -2.5, 3.2, 2.4, 0.48),
+        (18.0, 14.0, 13.0, 18.0, 0.88),
+        (-4.0, 24.0, 14.0, 11.0, 0.84),
+        (-22.0, 24.0, 9.5, 8.0, 0.74),
+        (-19.0, 46.8, 4.5, 2.2, 0.52),
+        (-24.5, 134.5, 9.0, 13.5, 0.82),
+        (-41.5, 173.0, 3.5, 2.2, 0.48),
+        (46.0, -102.0, 14.0, 18.0, 0.86),
+        (62.0, -112.0, 10.0, 20.0, 0.74),
+        (21.0, -100.0, 7.0, 5.5, 0.62),
+        (72.0, -42.0, 8.5, 12.0, 0.76),
+        (-10.0, -60.0, 13.0, 11.0, 0.86),
+        (-34.0, -66.0, 13.0, 5.5, 0.72),
+        (-84.0, 0.0, 9.0, 180.0, 0.90),
     ]
 
     continent = np.zeros_like(lat_deg, dtype=np.float32)
     for clat, clon, slat, slon, w in lobes:
         dlat = (lat_deg - clat) / slat
-        # Shortest wrapped longitude delta in [-180, 180]
         dlon = (((lon_deg - clon + 180.0) % 360.0) - 180.0) / slon
         continent += w * np.exp(-0.5 * (dlat * dlat + dlon * dlon))
 
-    # Carve Mediterranean, Red Sea & South China Sea basin so coastlines look crisp
     sea_carves = [
-        (15.5, 115.5, 4.8, 5.5, 0.52),   # South China Sea deep basin just SE of HK!
-        (36.5, 18.0, 3.5, 12.0, 0.48),   # Mediterranean Sea
-        (20.0, 38.5, 5.5, 2.2, 0.42),    # Red Sea
-        (25.0, -90.0, 4.8, 6.0, 0.52),   # Gulf of Mexico
+        (15.5, 115.5, 4.8, 5.5, 0.52),
+        (36.5, 18.0, 3.5, 12.0, 0.48),
+        (20.0, 38.5, 5.5, 2.2, 0.42),
+        (25.0, -90.0, 4.8, 6.0, 0.52),
     ]
     for clat, clon, slat, slon, w in sea_carves:
         dlat = (lat_deg - clat) / slat
         dlon = (((lon_deg - clon + 180.0) % 360.0) - 180.0) / slon
         continent -= w * np.exp(-0.5 * (dlat * dlat + dlon * dlon))
 
-    # Add organic multi-octave 3D fractal coastline & mountain ridges
     detail = fbm3d(nx * 5.2, ny * 5.2, nz * 5.2, octaves=5, seed=42) - 0.48
     micro_ridge = np.abs(fbm3d(nx * 14.0, ny * 14.0, nz * 14.0, octaves=4, seed=108) - 0.5) * 2.0
 
@@ -140,7 +124,6 @@ def evaluate_world_elevation(lat_deg, lon_deg):
 
 
 def generate_earth_crust_textures(w=1024, h=512):
-    """Generates 1K BaseColor, Roughness, and Normal maps aligned to u in [0..1] -> phi in [0..1.5*pi]."""
     u = (np.arange(w, dtype=np.float32) + 0.5) / w
     v = (np.arange(h, dtype=np.float32) + 0.5) / h
     uu, vv = np.meshgrid(u, v)
@@ -156,7 +139,6 @@ def generate_earth_crust_textures(w=1024, h=512):
     rgba = np.ones((h, w, 4), dtype=np.float32)
     rough = np.ones((h, w, 4), dtype=np.float32)
 
-    # 1. Ocean bathymetry gradient (deep sapphire -> azure -> vibrant coastal turquoise)
     ocean_t = np.clip((elev + 0.65) / 0.65, 0.0, 1.0)
     deep_col = np.array([0.025, 0.11, 0.34], dtype=np.float32)
     mid_col = np.array([0.05, 0.28, 0.62], dtype=np.float32)
@@ -168,11 +150,10 @@ def generate_earth_crust_textures(w=1024, h=512):
         mid_col + ((ocean_t - 0.72) / 0.28)[..., None] * (shelf_col - mid_col),
     )
 
-    # 2. Land biomes (coastal sand -> lush emerald forest -> dry ochre desert -> alpine rock -> snow)
     abs_lat = np.abs(lat_deg)
     aridity = np.clip(
         np.exp(-((abs_lat - 24.0) / 11.0) ** 2) * (1.15 - moisture * 1.35)
-        - np.exp(-((lon_deg - 112.0) / 18.0) ** 2) * 0.55,  # Keep East/South China lush green!
+        - np.exp(-((lon_deg - 112.0) / 18.0) ** 2) * 0.55,
         0.0,
         1.0,
     )
@@ -187,11 +168,9 @@ def generate_earth_crust_textures(w=1024, h=512):
     veg_rgb = lush_green * (1.0 - moisture[..., None] * 0.35) + high_forest * (moisture[..., None] * 0.35)
     biome_rgb = veg_rgb * (1.0 - aridity[..., None]) + desert_sand * aridity[..., None]
 
-    # Beach transition right near coastline
     coast_band = np.clip(1.0 - elev / 0.045, 0.0, 1.0)
     biome_rgb = biome_rgb * (1.0 - coast_band[..., None] * 0.65) + beach_gold * (coast_band[..., None] * 0.65)
 
-    # Mountain rock & snow caps (Himalayas + High Latitude Polar Ice)
     mtn_t = np.clip((elev - 0.36) / 0.25, 0.0, 1.0)
     biome_rgb = biome_rgb * (1.0 - mtn_t[..., None]) + alpine_rock * mtn_t[..., None]
 
@@ -204,19 +183,16 @@ def generate_earth_crust_textures(w=1024, h=512):
     coast_blend = np.clip(elev / 0.018, 0.0, 1.0)
     final_rgb = np.where(is_land[..., None], ocean_rgb * (1.0 - coast_blend[..., None]) + land_rgb * coast_blend[..., None], ocean_rgb)
 
-    # Polar sea ice pack
     sea_ice = np.clip((abs_lat - 77.0 + (moisture - 0.5) * 6.0) / 4.0, 0.0, 1.0)
     final_rgb = final_rgb * (1.0 - sea_ice[..., None] * 0.85) + snow_white * (sea_ice[..., None] * 0.85)
 
     rgba[..., :3] = final_rgb
 
-    # Roughness: glossy ocean (0.16), matte land (0.78), icy snow (0.32)
     r_val = np.where(is_land, 0.78 - ice_total * 0.45, 0.16 + sea_ice * 0.25)
     rough[..., 0] = r_val
     rough[..., 1] = r_val
     rough[..., 2] = r_val
 
-    # Bump height only on land & ocean ridges
     bump_h = np.where(is_land, elev * 1.6, elev * 0.12)
     norm_rgba = height_to_normal_rgba(bump_h, strength=4.2)
 
@@ -236,7 +212,6 @@ def generate_cloud_texture(w=1024, h=512):
     lat_deg = vv * 180.0 - 90.0
     nx, ny, nz = latlon_to_unit_xyz(lat_deg, lon_deg)
 
-    # Domain-warped swirling atmospheric cloud bands (ITCZ + mid-latitude cyclones)
     warp = fbm3d(nx * 3.2, ny * 3.2, nz * 3.2, octaves=4, seed=501)
     clouds = fbm3d(
         nx * 6.0 + warp * 1.4,
@@ -247,8 +222,6 @@ def generate_cloud_texture(w=1024, h=512):
     )
     wisps = fbm3d(nx * 14.0, ny * 14.0, nz * 14.0, octaves=3, seed=521)
 
-    # Keep a subtle clear window right around Hong Kong so the HK skyline marker is super clear,
-    # with realistic typhoon/monsoon cloud wisps nearby in the Pacific!
     dhk_lat = (lat_deg - HK_LAT_DEG) / 6.5
     dhk_lon = (((lon_deg - HK_LON_DEG + 180.0) % 360.0) - 180.0) / 7.5
     hk_clear = 1.0 - 0.65 * np.exp(-0.5 * (dhk_lat ** 2 + dhk_lon ** 2))
@@ -318,7 +291,6 @@ def generate_core_textures(w=512, h=512):
     swirl = fbm3d(nx * 6.0, ny * 6.0, nz * 6.0, octaves=5, seed=901)
     cryst = np.abs(fbm3d(nx * 16.0, ny * 16.0, nz * 16.0, octaves=3, seed=919) - 0.5) * 2.0
 
-    # uu doubles as radial factor on cutaway walls so inner core shines white-gold!
     hot = np.clip(swirl * 0.75 + (1.0 - cryst) * 0.35, 0.0, 1.0)
     molten_gold = np.array([0.95, 0.56, 0.08], dtype=np.float32)
     white_hot = np.array([1.00, 0.94, 0.62], dtype=np.float32)
@@ -352,10 +324,6 @@ def create_cutaway_shell(
     mat_section=None,
     displace_earth_relief=False,
 ):
-    """
-    Builds a razor-sharp 270-degree (phi in [0..1.5*pi]) spherical shell leaving [1.5*pi..2*pi] open.
-    Unwelded seam edges between outer globe and cross-section walls guarantee crisp 90-degree normals!
-    """
     mesh = bpy.data.meshes.new(name + "_Mesh")
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.collection.objects.link(obj)
@@ -372,9 +340,8 @@ def create_cutaway_shell(
     phi_start = 0.0
     phi_end = math.pi * 1.5
 
-    # Precompute angular grids
     u_vals = np.linspace(0.0, 1.0, seg_u + 1, dtype=np.float32)
-    v_vals = np.linspace(0.0, 1.0, seg_v + 1, dtype=np.float32)  # v=0 South Pole, v=1 North Pole
+    v_vals = np.linspace(0.0, 1.0, seg_v + 1, dtype=np.float32)
     uu, vv = np.meshgrid(u_vals, v_vals)
 
     phi_grid = phi_start + uu * (phi_end - phi_start)
@@ -384,7 +351,6 @@ def create_cutaway_shell(
     if displace_earth_relief:
         lon_grid = ((np.degrees(phi_grid) - LON_OFFSET_DEG + 180.0) % 360.0) - 180.0
         elev_grid = evaluate_world_elevation(lat_grid, lon_grid)
-        # Land rises physically up to +0.068 units; ocean trenches dip slightly
         relief_grid = np.where(elev_grid > 0.0, 0.012 + elev_grid * 0.058, elev_grid * 0.012)
     else:
         relief_grid = np.zeros_like(uu, dtype=np.float32)
@@ -407,15 +373,8 @@ def create_cutaway_shell(
     outer = make_patch_grid(r_edu_out, use_relief=displace_earth_relief)
     for iv in range(seg_v):
         for iu in range(seg_u):
-            coords = [
-                (iv, iu),
-                (iv + 1, iu),
-                (iv + 1, iu + 1),
-                (iv, iu + 1),
-            ]
-            verts = [outer[r][c] for r, c in coords]
-            # Avoid zero-area degenerate quads at exact poles if needed
-            f = bm.faces.new(verts)
+            coords = [(iv, iu), (iv + 1, iu), (iv + 1, iu + 1), (iv, iu + 1)]
+            f = bm.faces.new([outer[r][c] for r, c in coords])
             f.material_index = 0
             f.smooth = True
             orient_face_outward(f, f.calc_center_median())
@@ -426,12 +385,7 @@ def create_cutaway_shell(
         inner = make_patch_grid(r_edu_in, use_relief=False)
         for iv in range(seg_v):
             for iu in range(seg_u):
-                coords = [
-                    (iv, iu),
-                    (iv, iu + 1),
-                    (iv + 1, iu + 1),
-                    (iv + 1, iu),
-                ]
+                coords = [(iv, iu), (iv, iu + 1), (iv + 1, iu + 1), (iv + 1, iu)]
                 f = bm.faces.new([inner[r][c] for r, c in coords])
                 f.material_index = sec_mat_idx
                 f.smooth = True
@@ -439,8 +393,6 @@ def create_cutaway_shell(
                 for loop, (r, c) in zip(f.loops, coords):
                     loop[uv_layer].uv = (float(u_vals[c]), float(v_vals[r]))
 
-        # Separate crisp vertex strips for the two 90-degree cutaway cross-section walls!
-        # Wall A at phi = 0 (+X, y=0): outward normal points into open wedge toward -Y (0, -1, 0)
         w0_in = [bm.verts.new(inner[iv][0].co.copy()) for iv in range(seg_v + 1)]
         w0_out = [bm.verts.new(outer[iv][0].co.copy()) for iv in range(seg_v + 1)]
         for iv in range(seg_v):
@@ -452,7 +404,6 @@ def create_cutaway_shell(
             for loop, uv in zip(f.loops, uvs):
                 loop[uv_layer].uv = uv
 
-        # Wall B at phi = 1.5*pi (x=0, -Y): outward normal points into open wedge toward +X (+1, 0, 0)
         we_in = [bm.verts.new(inner[iv][seg_u].co.copy()) for iv in range(seg_v + 1)]
         we_out = [bm.verts.new(outer[iv][seg_u].co.copy()) for iv in range(seg_v + 1)]
         for iv in range(seg_v):
@@ -464,7 +415,6 @@ def create_cutaway_shell(
             for loop, uv in zip(f.loops, uvs):
                 loop[uv_layer].uv = uv
     elif r_edu_in >= 0.0:
-        # Solid Core cutaway walls meeting along the Z polar axis (multi-ring radial fan for crisp detail!)
         w0_ax = [bm.verts.new((0.0, 0.0, r_edu_out * math.cos(float(theta_grid[iv, 0])))) for iv in range(seg_v + 1)]
         w0_out = [bm.verts.new(outer[iv][0].co.copy()) for iv in range(seg_v + 1)]
         for iv in range(seg_v):
@@ -490,7 +440,6 @@ def create_cutaway_shell(
     bm.to_mesh(mesh)
     bm.free()
 
-    # Shape Keys: Basis (Educational Scale) -> TrueScale (Scientific Scale)
     if r_true_out > 0.0:
         obj.shape_key_add(name="Basis", from_mix=False)
         sk_true = obj.shape_key_add(name="TrueScale", from_mix=False)
@@ -553,13 +502,6 @@ def create_cloud_shell(r_cloud, mat_cloud, seg_u=76, seg_v=48):
 
 
 def build_hong_kong_landmark(crust_parent, base_radius=2.0):
-    """
-    Builds an iconic miniature 3D Hong Kong Landmark ('HK_Marker') at 22.32°N, 114.17°E:
-    - Glowing Golden-Cyan Victoria Harbour Beacon Ring
-    - Stylized Bank of China Tower (中銀大廈 stepped prism + twin spires) & Two IFC Tower
-    - Floating Ruby-Red Bauhinia Beacon Pin ('HK_Pin_Gem') + 'anchor_hk' Empty node!
-    Parented to Layer_Crust so it moves together when exploding layers!
-    """
     hk_elev = float(evaluate_world_elevation(np.array([HK_LAT_DEG]), np.array([HK_LON_DEG]))[0])
     r_surface = base_radius + (0.012 + hk_elev * 0.058 if hk_elev > 0 else 0.015)
 
@@ -592,16 +534,16 @@ def build_hong_kong_landmark(crust_parent, base_radius=2.0):
         emission_strength=1.55,
     )
 
-    # Assemble HK_Marker in a single clean multi-material mesh in local +Z space
     bm = bmesh.new()
 
     def append_part(temp_obj, mat_idx):
+        bpy.context.view_layer.update()
         temp_bm = bmesh.new()
         temp_bm.from_mesh(temp_obj.data)
+        bmesh.ops.transform(temp_bm, matrix=temp_obj.matrix_world, verts=temp_bm.verts)
         for f in temp_bm.faces:
             f.material_index = mat_idx
             f.smooth = True
-        # Merge into master bm via temporary mesh
         m_tmp = bpy.data.meshes.new("_tmp_part")
         temp_bm.to_mesh(m_tmp)
         temp_bm.free()
@@ -613,7 +555,7 @@ def build_hong_kong_landmark(crust_parent, base_radius=2.0):
     bpy.ops.mesh.primitive_torus_add(major_radius=0.085, minor_radius=0.014, major_segments=28, minor_segments=10, location=(0, 0, 0.008))
     append_part(bpy.context.active_object, 0)
 
-    # 2. Stylized Bank of China Tower (stepped triangular prism + twin antenna needles, mat 1)
+    # 2. Stylized Bank of China Tower (stepped triangular prism + spire, mat 1 & 0)
     bpy.ops.mesh.primitive_cone_add(vertices=4, radius1=0.032, radius2=0.018, depth=0.15, location=(-0.018, -0.008, 0.075), rotation=(0, 0, math.pi * 0.25))
     append_part(bpy.context.active_object, 1)
     bpy.ops.mesh.primitive_cone_add(vertices=4, radius1=0.005, radius2=0.001, depth=0.055, location=(-0.018, -0.008, 0.17))
@@ -634,7 +576,8 @@ def build_hong_kong_landmark(crust_parent, base_radius=2.0):
     bm.free()
 
     hk_obj = bpy.data.objects.new("HK_Marker", hk_mesh)
-    hk_obj.data.materials.extend([mat_gold, mat_skyline, mat_ruby_pin])
+    for m in (mat_gold, mat_skyline, mat_ruby_pin):
+        hk_obj.data.materials.append(m)
     bpy.context.collection.objects.link(hk_obj)
 
     hk_obj.parent = crust_parent
@@ -642,11 +585,10 @@ def build_hong_kong_landmark(crust_parent, base_radius=2.0):
     hk_obj.rotation_quaternion = rot_quat
     hk_obj.location = up_vec * r_surface
 
-    # Empty anchor right above the ruby pin for crisp 3D HTML badge projection in Three.js!
     anchor_hk = bpy.data.objects.new("anchor_hk", None)
     anchor_hk.empty_display_size = 0.08
     anchor_hk.parent = crust_parent
-    anchor_hk.location = up_vec * (r_surface + 0.40)
+    anchor_hk.location = up_vec * (r_surface + 0.42)
     bpy.context.collection.objects.link(anchor_hk)
 
 
@@ -663,7 +605,6 @@ def add_anchor(name, location, parent=None):
 def build(filepath):
     clear_scene()
 
-    # 1. Build 1K PBR Earth Surface + Continental Bedrock Materials
     img_earth_col, img_earth_rough, img_earth_norm = generate_earth_crust_textures(1024, 512)
     mat_crust_surface = build_pbr_textured_material(
         "Mat_Crust_Surface",
@@ -680,7 +621,6 @@ def build(filepath):
         metallic=0.08,
     )
 
-    # 2. Build 1K Swirling Cloud Material
     img_clouds = generate_cloud_texture(1024, 512)
     mat_clouds = build_pbr_textured_material(
         "Mat_Atmosphere_Clouds",
@@ -690,7 +630,6 @@ def build(filepath):
         use_alpha=True,
     )
 
-    # 3. Build 512px Convection Magma Mantle Material
     img_mantle_col, img_mantle_emit, img_mantle_norm = generate_mantle_textures(512, 512)
     mat_mantle = build_pbr_textured_material(
         "Mat_Mantle_Magma",
@@ -703,7 +642,6 @@ def build(filepath):
         metallic_val=0.05,
     )
 
-    # 4. Build 512px Molten & Crystalline Iron-Nickel Core Material
     img_core_col, img_core_norm = generate_core_textures(512, 512)
     mat_core = build_pbr_textured_material(
         "Mat_Core_IronNickel",
@@ -716,7 +654,6 @@ def build(filepath):
         metallic_val=0.88,
     )
 
-    # 5. Construct Concentric 3D Cutaway Shells + Inner Core Crystal Sphere
     core_obj = create_cutaway_shell(
         "Layer_Core",
         0.0,
@@ -730,7 +667,6 @@ def build(filepath):
         displace_earth_relief=False,
     )
 
-    # Add a gleaming solid Inner Core crystal sphere protruding slightly in the center of the cutaway!
     bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=3, radius=0.42, location=(0.0, 0.0, 0.0))
     inner_core = bpy.context.active_object
     inner_core.name = "Inner_Core_Crystal"
@@ -773,7 +709,6 @@ def build(filepath):
 
     create_cloud_shell(2.085, mat_clouds, seg_u=76, seg_v=48)
 
-    # 6. Attach Hong Kong 3D Landmark & Anchors
     build_hong_kong_landmark(crust_obj, base_radius=2.00)
 
     add_anchor("anchor_core", (0.35, -0.35, 0.15), parent=core_obj)
