@@ -25,21 +25,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Headless Blender
+      - name: Install Headless Blender & NumPy
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender
+          sudo apt-get install -y blender python3-numpy
 
       - name: Generate 3D GLB Models via Blender Python
         run: |
-          blender --background --python blender-scripts/build_all.py
+          blender --background --python-exit-code 1 --python blender-scripts/build_all.py
           ls -lh public/models/
+          test -s public/models/earth_cutaway.glb
+          test -s public/models/drill_pod.glb
+          test -s public/models/rock_samples.glb
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '22'
 
       - name: Install frontend dependencies
         run: npm install
