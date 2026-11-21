@@ -10,10 +10,13 @@ type GameMode = 'cutaway' | 'drill' | 'quiz';
 
 export class HUD {
   private root: HTMLElement;
+  private hkPinEl: HTMLButtonElement;
   private mode: GameMode = 'cutaway';
   private activeLayer: LayerId = 'crust';
   private exploded = false;
   private trueScale = false;
+  private cloudsVisible = true;
+  private magnifiedRock = false;
 
   private depthKm = 20;
   private thermalShield = true;
@@ -26,6 +29,7 @@ export class HUD {
 
   constructor(
     root: HTMLElement,
+    private canvas: HTMLCanvasElement,
     private cameraRig: CameraRig,
     private cutawayScene: CutawayLabScene,
     private drillScene: DrillMissionScene,
@@ -33,11 +37,48 @@ export class HUD {
   ) {
     this.root = root;
 
+    // Create floating 3D-tracked Hong Kong Landmark Pin Badge
+    this.hkPinEl = document.createElement('button');
+    this.hkPinEl.className = 'hk-floating-pin';
+    this.hkPinEl.innerHTML = '🇭🇰 香港 Hong Kong';
+    document.body.appendChild(this.hkPinEl);
+
+    this.hkPinEl.addEventListener('click', () => {
+      this.focusHongKong();
+    });
+
     this.cutawayScene.onLayerSelected((layer) => {
       this.activeLayer = layer;
+      if (layer === 'hk') {
+        const focus = this.cutawayScene.getHongKongWorldFocus();
+        this.cameraRig.flyTo(focus.camPos, focus.target);
+      }
       this.render();
     });
 
+    this.render();
+  }
+
+  public updateFloatingLabels(): void {
+    if (this.mode !== 'cutaway') {
+      this.hkPinEl.style.display = 'none';
+      return;
+    }
+    const proj = this.cutawayScene.getHkScreenPosition(this.canvas);
+    if (!proj.visible) {
+      this.hkPinEl.style.display = 'none';
+      return;
+    }
+    this.hkPinEl.style.display = 'inline-flex';
+    this.hkPinEl.style.transform = `translate(-50%, -100%) translate(${proj.x}px, ${proj.y}px)`;
+    this.hkPinEl.classList.toggle('active', this.activeLayer === 'hk');
+  }
+
+  private focusHongKong(): void {
+    this.activeLayer = 'hk';
+    this.cutawayScene.selectLayer('hk');
+    const focus = this.cutawayScene.getHongKongWorldFocus();
+    this.cameraRig.flyTo(focus.camPos, focus.target);
     this.render();
   }
 
@@ -57,11 +98,12 @@ export class HUD {
     this.quizScene.root.visible = next === 'quiz';
 
     if (next === 'cutaway') {
-      this.cameraRig.flyTo(new THREE.Vector3(4.2, 2.6, 4.6), new THREE.Vector3(0, 0, 0));
+      this.cameraRig.flyTo(new THREE.Vector3(3.8, 2.3, 4.7), new THREE.Vector3(0, 0, 0));
     } else if (next === 'drill') {
-      this.cameraRig.flyTo(new THREE.Vector3(0, 0.4, 4.2), new THREE.Vector3(0, 0, 0));
+      this.cameraRig.flyTo(new THREE.Vector3(0, 0.35, 3.8), new THREE.Vector3(0, -0.1, 0));
     } else {
-      this.cameraRig.flyTo(new THREE.Vector3(0, 1.3, 4.8), new THREE.Vector3(0, 0, 0));
+      const { targetX } = this.quizScene.focusRock(this.rockIdx);
+      this.cameraRig.flyTo(new THREE.Vector3(targetX, 0.85, 3.4), new THREE.Vector3(targetX, -0.1, 0));
     }
 
     this.render();
@@ -97,27 +139,35 @@ export class HUD {
       const info = EARTH_LAYERS[this.activeLayer];
       return `
         <section class="control-panel">
-          <h3 class="panel-title">🔍 點選或切換地球圈層</h3>
+          <h3 class="panel-title">🔍 點選地球圈層或香港地標</h3>
           <div class="btn-row">
-            <button class="action-btn ${this.activeLayer === 'crust' ? 'selected' : ''}" data-layer="crust">地殼 Crust</button>
-            <button class="action-btn ${this.activeLayer === 'mantle' ? 'selected' : ''}" data-layer="mantle">地幔 Mantle</button>
-            <button class="action-btn ${this.activeLayer === 'core' ? 'selected' : ''}" data-layer="core">地核 Core</button>
+            <button class="action-btn ${this.activeLayer === 'crust' ? 'selected' : ''}" data-layer="crust">地殼</button>
+            <button class="action-btn ${this.activeLayer === 'mantle' ? 'selected' : ''}" data-layer="mantle">地幔</button>
+            <button class="action-btn ${this.activeLayer === 'core' ? 'selected' : ''}" data-layer="core">地核</button>
+            <button class="action-btn hk-btn ${this.activeLayer === 'hk' ? 'selected' : ''}" id="btn-hk-focus">🇭🇰 香港</button>
           </div>
           <div class="btn-row">
             <button class="action-btn primary" id="btn-explode">
               ${this.exploded ? '🧩 合併地球剖面' : '💥 拆開三層結構'}
             </button>
+            <button class="action-btn" id="btn-clouds">
+              ${this.cloudsVisible ? '☁️ 雲層：顯示' : '🌤️ 雲層：隱藏'}
+            </button>
+          </div>
+          <div class="btn-row">
             <button class="action-btn" id="btn-scale">
               ${this.trueScale ? '📐 目前：真實科學比例' : '🔎 目前：教學放大比例'}
             </button>
+            <button class="action-btn" id="btn-reset-cam">🔄 全景視角</button>
           </div>
         </section>
 
         <aside class="info-card">
           <h2>
-            <span>${info.zhName}（${info.enName}）</span>
+            <span>${info.zhName}</span>
             <button class="action-btn speak-btn" id="btn-speak" style="flex:0 0 auto;min-height:36px;">🔊 粵語朗讀</button>
           </h2>
+          <div style="font-size:0.78rem;color:#94a3b8;margin-bottom:6px;">${info.enName}</div>
           <div class="prop-grid">
             <div class="prop-item">
               <div class="prop-label">所在位置</div>
@@ -169,10 +219,10 @@ export class HUD {
           </div>
           <div class="btn-row">
             <button class="action-btn ${this.thermalShield ? 'selected' : ''}" id="btn-shield">
-              🛡️ 隔熱護盾：${this.thermalShield ? '開啟' : '關閉'}
+              🛡️ 六角隔熱力場：${this.thermalShield ? '開啟' : '關閉'}
             </button>
             <button class="action-btn ${this.pressureHull ? 'selected' : ''}" id="btn-hull">
-              🔩 抗壓外殼：${this.pressureHull ? '開啟' : '關閉'}
+              🔩 抗壓裝甲：${this.pressureHull ? '開啟' : '關閉'}
             </button>
           </div>
         </section>
@@ -181,17 +231,22 @@ export class HUD {
           <h2>📡 探測艙即時科學紀錄</h2>
           <p id="tel-status" style="font-size:0.95rem;line-height:1.55;font-weight:700;">${tel.statusNote}</p>
           <div class="egg-analogy">
-            💡 <strong>探究思考（PDAR）：</strong>拉動滑桿比較地殼、地幔和地核的溫度與壓力數據，你發現深度越深，物理特性有甚麼規律？
+            💡 <strong>探究思考（PDAR）：</strong>觀察鎢鋼螺旋鑽頭外的岩壁與溫度計，為甚麼越接近地核，探測艙越需要隔熱與抗高壓保護？
           </div>
         </aside>
       `;
     }
 
     const q = QUIZ_QUESTIONS[this.quizIdx];
-    const rock = this.quizScene.focusRock(this.rockIdx);
+    const { info: rock } = this.quizScene.focusRock(this.rockIdx);
     return `
       <section class="control-panel">
-        <h3 class="panel-title">🪨 地殼三大岩石 3D 標本（延伸 4EA2）</h3>
+        <h3 class="panel-title">
+          <span>🪨 香港地殼岩石標本館（4EA2）</span>
+          <button class="action-btn" id="btn-rock-zoom" style="flex:0 0 auto;min-height:34px;padding:4px 10px;font-size:0.8rem;">
+            ${this.magnifiedRock ? '🔭 遠景展示台' : '🔍 放大看礦物紋理'}
+          </button>
+        </h3>
         <div class="btn-row">
           ${ROCK_SAMPLES.map(
             (r, idx) => `
@@ -254,12 +309,26 @@ export class HUD {
         const layer = btn.dataset.layer as LayerId;
         this.activeLayer = layer;
         this.cutawayScene.selectLayer(layer);
+        this.cameraRig.flyTo(new THREE.Vector3(3.8, 2.3, 4.7), new THREE.Vector3(0, 0, 0));
         this.render();
       });
     });
 
+    this.root.querySelector('#btn-hk-focus')?.addEventListener('click', () => {
+      this.focusHongKong();
+    });
+
+    this.root.querySelector('#btn-reset-cam')?.addEventListener('click', () => {
+      this.cameraRig.flyTo(new THREE.Vector3(3.8, 2.3, 4.7), new THREE.Vector3(0, 0, 0));
+    });
+
     this.root.querySelector('#btn-explode')?.addEventListener('click', () => {
       this.exploded = this.cutawayScene.toggleExplode();
+      this.render();
+    });
+
+    this.root.querySelector('#btn-clouds')?.addEventListener('click', () => {
+      this.cloudsVisible = this.cutawayScene.toggleClouds();
       this.render();
     });
 
@@ -270,7 +339,7 @@ export class HUD {
 
     this.root.querySelector('#btn-speak')?.addEventListener('click', () => {
       const info = EARTH_LAYERS[this.activeLayer];
-      this.speak(`${info.zhName}。${info.summary} ${info.eggAnalogy.replace('🥚 ', '')}`);
+      this.speak(`${info.zhName}。${info.summary} ${info.eggAnalogy.replace(/^[🥚🇭🇰]\s*/, '')}`);
     });
 
     const slider = this.root.querySelector<HTMLInputElement>('#depth-slider');
@@ -302,9 +371,21 @@ export class HUD {
     this.root.querySelectorAll<HTMLButtonElement>('[data-rock]').forEach((btn) => {
       btn.addEventListener('click', () => {
         this.rockIdx = Number(btn.dataset.rock);
-        this.quizScene.focusRock(this.rockIdx);
+        const { targetX } = this.quizScene.focusRock(this.rockIdx);
+        const distZ = this.magnifiedRock ? 1.85 : 3.4;
+        const posY = this.magnifiedRock ? 0.35 : 0.85;
+        this.cameraRig.flyTo(new THREE.Vector3(targetX, posY, distZ), new THREE.Vector3(targetX, 0.0, 0));
         this.render();
       });
+    });
+
+    this.root.querySelector('#btn-rock-zoom')?.addEventListener('click', () => {
+      this.magnifiedRock = !this.magnifiedRock;
+      const { targetX } = this.quizScene.focusRock(this.rockIdx);
+      const distZ = this.magnifiedRock ? 1.85 : 3.4;
+      const posY = this.magnifiedRock ? 0.35 : 0.85;
+      this.cameraRig.flyTo(new THREE.Vector3(targetX, posY, distZ), new THREE.Vector3(targetX, 0.0, 0));
+      this.render();
     });
 
     this.root.querySelectorAll<HTMLButtonElement>('[data-opt]').forEach((btn) => {
