@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>地心探險號：地球結構 3D 實驗室｜小四科學科（4EA1）</title>
+    <meta
+      name="description"
+      content="配合香港教育局《科學（小一至小六）課程指引》（2025）小四學習重點 4EA1：透過 3D 地球剖面拆解與地心鑽探模擬，探索地殼、地幔和地核的結構與物理特性。"
+    />
+    <meta property="og:title" content="地心探險號：地球結構 3D 實驗室｜小四科學科" />
+    <meta
+      property="og:description"
+      content="香港小四科學科 3D 互動學習遊戲：動手拆解地殼、地幔與地核，駕駛鑽探艙體驗地心高溫與高壓！"
+    />
+    <meta property="og:type" content="website" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#0b132b" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="webgl-canvas"></canvas>
+      <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-box">
+          <div class="spinner"></div>
+          <h2>🌍 地心探險號準備中...</h2>
+          <p id="loading-text">正在載入 Blender 3D 地球結構模型</p>
+        </div>
+      </div>
+      <div id="ui-root"></div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

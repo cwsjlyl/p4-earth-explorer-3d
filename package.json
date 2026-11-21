@@ -1,0 +1,21 @@
+{
+  "name": "p4-earth-explorer-3d",
+  "private": true,
+  "version": "1.0.0",
+  "description": "香港小學四年級科學科（2025課程指引 4EA1）地球結構 3D 互動網頁遊戲",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "build:models": "blender --background --python blender-scripts/build_all.py"
+  },
+  "dependencies": {
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.170.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}
