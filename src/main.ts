@@ -29,13 +29,14 @@ async function bootstrap(): Promise<void> {
 
   engine.scene.add(cutawayScene.root, drillScene.root, quizScene.root);
 
-  new HUD(uiRoot, cameraRig, cutawayScene, drillScene, quizScene);
+  const hud = new HUD(uiRoot, canvas, cameraRig, cutawayScene, drillScene, quizScene);
 
   engine.onUpdate((dt, elapsed) => {
     cameraRig.update(dt);
     cutawayScene.update(dt, elapsed);
     drillScene.update(dt, elapsed);
     quizScene.update(dt, elapsed);
+    hud.updateFloatingLabels();
   });
 
   loadingOverlay?.classList.add('hidden');
